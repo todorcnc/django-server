@@ -3,30 +3,6 @@ version: "3.8"
 
 # Define the services that make up the application
 services:
-  # PostgreSQL database service
-  db:
-    # Use the official PostgreSQL image from DockerHub
-    image: postgres 
-    container_name: postgresql-database
-    # Load environment variables from server.env
-    env_file:
-      - server.env
-    # Persistent storage for PostgreSQL to ensure data remains even after container is removed
-    volumes:
-      - pgdata:/var/lib/postgresql/data/
-    # Ensure the container restarts until stopped
-    restart: always
-
-  # Redis database service
-  redis:
-    # Use version 7.0.11 of the Redis image based on Alpine Linux
-    image: "redis:7.0.11-alpine"
-    # Expose Redis's port 6379 to the host machine
-    ports:
-      - "6379:6379"
-    # Ensure the container restarts until stopped
-    restart: always
-
   # Application server, perhaps a Django web server
   server:
     container_name: django-server
@@ -52,9 +28,46 @@ services:
     # Ensure the container restarts until stopped
     restart: always
 
-  # Celery worker service for task execution
-  celery:
-    container_name: celery-worker
+  # PostgreSQL database service
+  db:
+    # Use the official PostgreSQL image from DockerHub
+    image: postgres 
+    container_name: postgresql-database
+    # Load environment variables from server.env
+    env_file:
+      - server.env
+    # Persistent storage for PostgreSQL to ensure data remains even after container is removed
+    volumes:
+      - pgdata:/var/lib/postgresql/data/
+    # Ensure the container restarts until stopped
+    restart: always
+
+  # Redis database service
+  redis:
+    # Use version 7.0.11 of the Redis image based on Alpine Linux
+    image: "redis:7.0.11-alpine"
+    # Expose Redis's port 6379 to the host machine
+    ports:
+      - "6379:6379"
+    # Ensure the container restarts until stopped
+    restart: always
+  
+  # Flower service for monitoring Celery tasks
+  flower:
+    image: mher/flower
+    container_name: celery-monitor
+    # Expose Flower's port 5555 as port 5000 on the host
+    ports:
+      - 5000:5555
+    # Load environment variables from server.env
+    env_file:
+      - server.env
+    # Ensure the container restarts until stopped
+    restart: always
+
+  # Celery worker service for task execution with django code
+  celery_django:
+    container_name: celery_django_worker
     build:
       context: ./server
     # Command to initialize the Celery worker with specific parameters
@@ -72,18 +85,27 @@ services:
     # Ensure the container restarts until stopped
     restart: always
 
-  # Flower service for monitoring Celery tasks
-  flower:
-    image: mher/flower
-    container_name: celery-monitor
-    # Expose Flower's port 5555 as port 5000 on the host
-    ports:
-      - 5000:5555
+  # GPU enabled independant Celery worker service for task execution 
+  celery_gpu:
+    container_name: celery_gpu_worker
+    build:
+      context: ./gpuceleryworker
+      dockerfile: Dockerfile
+    # Command to initialize the Celery worker with specific parameters
+    command: celery -A gpuCeleryWorker worker -l INFO -c 1
     # Load environment variables from server.env
     env_file:
       - server.env
+    # Map host directory to a directory inside the container
+    volumes:
+      - ./gpuceleryworker:/usr/src/app/
+    # Specify dependencies for the celery service
+    depends_on:
+      - server
+      - redis
     # Ensure the container restarts until stopped
     restart: always
+
 
 # Define named volumes
 volumes:
