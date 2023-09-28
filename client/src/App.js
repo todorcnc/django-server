@@ -24,7 +24,8 @@ function App() {
   }, []);
 
   const connectToWebSocket = () => {
-    websocket = new WebSocket(`ws://localhost:8000/ws/websocket/`);
+    const username = 'userID';  // Retrieve this from your application's state or props
+    websocket = new WebSocket(`ws://localhost:8000/ws/websocket/?username=${username}`);
 
     websocket.onopen = () => {
       console.log('WebSocket connection opened');

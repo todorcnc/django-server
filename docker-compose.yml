@@ -19,6 +19,7 @@ services:
     ports:
       - "8000:8000"
     # Load environment variables from server.env
+
     env_file:
       - server.env
     # Specify that 'db' and 'redis' services should start before this service
@@ -66,8 +67,8 @@ services:
     restart: always
 
   # Celery worker service for task execution with django code
-  celery_django:
-    container_name: celery_django_worker
+  celery_django_gpu:
+    container_name: celery_django_gpu_worker
     build:
       context: ./server
     # Command to initialize the Celery worker with specific parameters
@@ -85,26 +86,7 @@ services:
     # Ensure the container restarts until stopped
     restart: always
 
-  # GPU enabled independant Celery worker service for task execution 
-  celery_gpu:
-    container_name: celery_gpu_worker
-    build:
-      context: ./gpuceleryworker
-      dockerfile: Dockerfile
-    # Command to initialize the Celery worker with specific parameters
-    command: celery -A gpuCeleryWorker worker -l INFO -c 1
-    # Load environment variables from server.env
-    env_file:
-      - server.env
-    # Map host directory to a directory inside the container
-    volumes:
-      - ./gpuceleryworker:/usr/src/app/
-    # Specify dependencies for the celery service
-    depends_on:
-      - server
-      - redis
-    # Ensure the container restarts until stopped
-    restart: always
+
 
 
 # Define named volumes

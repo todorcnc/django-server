@@ -6,11 +6,14 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 class WebsocketConsumer(AsyncWebsocketConsumer):
    
     async def connect(self):
-        print("Trying to connect")
+        username = self.scope["query_string"].decode("utf-8").split("=")[1]
+        print(f"Username attempting to connect: {username}")
+        print(f"Connection ID (Channel Name): {self.channel_name}")
         await self.accept()
         await self.channel_layer.group_add("notifications", self.channel_name)
     
     async def disconnect(self, close_code):
+        print(f"Connection ID (Channel Name) closing: {self.channel_name}")
         await self.channel_layer.group_discard("notifications", self.channel_name)
     
     async def send_notification(self, event):
