@@ -5,91 +5,119 @@ version: "3.8"
 services:
   # Application server, perhaps a Django web server
   server:
+    # Set a custom name for the created container
     container_name: django-server
+    # Specify build details for this service
     build:
+      # Set the context for the build, i.e., where the Dockerfile and other necessary files are located
       context: ./server
       # Path to the Dockerfile for this service
       dockerfile: Dockerfile    
-    # Start-up command for the service
+    # Command to run when the container starts
     command: ./start_server.sh
-    # Map host directory to a directory inside the container
+    # Mount a volume to persist data and share files between the host and the container
     volumes:
       - ./server:/usr/src/app/
-    # Expose service's port 8000 to the host machine
+    # Forward traffic from a port on the host to a port in the container
     ports:
       - "8000:8000"
-    # Load environment variables from server.env
-
+    # Set environment variables in the container using an external file
     env_file:
       - server.env
-    # Specify that 'db' and 'redis' services should start before this service
+    # Define a list of services this service depends on
     depends_on:
       - db
       - redis
-    # Ensure the container restarts until stopped
+    # Set the restart policy for the container
     restart: always
+    # Configuration to use NVIDIA GPUs within the container !!! https://docs.nvidia.com/cuda/wsl-user-guide/index.html
+    # Don't forget to install NVIDIA CUDA Toolkit on the system from here https://developer.nvidia.com/cuda-downloads before trying to run the docker-compose file
+    # Don't forget as well to Enable GPU Support in Docker Desktop:
+    #     - In the Docker settings under 'Resources', navigate to the 'Advanced' section.
+    #     - Ensure GPU support is enabled. There should be an option to allow Docker to access the GPU.
+
+    deploy:  
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            # Use all available GPUs; change this number to limit the GPUs
+            count: 1
+            # Define the capabilities of the NVIDIA device
+            capabilities: [gpu]
 
   # PostgreSQL database service
   db:
-    # Use the official PostgreSQL image from DockerHub
+    # Specify the container image to be used from DockerHub
     image: postgres 
+    # Set a custom name for the created container
     container_name: postgresql-database
-    # Load environment variables from server.env
+    # Set environment variables in the container using an external file
     env_file:
       - server.env
-    # Persistent storage for PostgreSQL to ensure data remains even after container is removed
+    # Mount a volume to persist the PostgreSQL data
     volumes:
       - pgdata:/var/lib/postgresql/data/
-    # Ensure the container restarts until stopped
+    # Set the restart policy for the container
     restart: always
 
   # Redis database service
   redis:
-    # Use version 7.0.11 of the Redis image based on Alpine Linux
+    # Specify the container image to be used from DockerHub
     image: "redis:7.0.11-alpine"
-    # Expose Redis's port 6379 to the host machine
+    # Forward traffic from a port on the host to a port in the container
     ports:
       - "6379:6379"
-    # Ensure the container restarts until stopped
+    # Set the restart policy for the container
     restart: always
   
   # Flower service for monitoring Celery tasks
   flower:
+    # Specify the container image to be used from DockerHub
     image: mher/flower
+    # Set a custom name for the created container
     container_name: celery-monitor
-    # Expose Flower's port 5555 as port 5000 on the host
+    # Forward traffic from a port on the host to a port in the container
     ports:
       - 5000:5555
-    # Load environment variables from server.env
+    # Set environment variables in the container using an external file
     env_file:
       - server.env
-    # Ensure the container restarts until stopped
+    # Set the restart policy for the container
     restart: always
 
   # Celery worker service for task execution with django code
   celery_django_gpu:
+    # Set a custom name for the created container
     container_name: celery_django_gpu_worker
     build:
       context: ./server
-    # Command to initialize the Celery worker with specific parameters
+    # Command to run when the container starts
     command: celery -A core worker -l INFO -c 1
-    # Load environment variables from server.env
+    # Set environment variables in the container using an external file
     env_file:
       - server.env
-    # Map host directory to a directory inside the container
+    # Mount a volume to persist data and share files between the host and the container
     volumes:
       - ./server:/usr/src/app/
-    # Specify dependencies for the celery service
+    # Define a list of services this service depends on
     depends_on:
       - server
       - redis
-    # Ensure the container restarts until stopped
+    # Set the restart policy for the container
     restart: always
 
-
-
+    deploy:  
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            # Use all available GPUs; change this number to limit the GPUs
+            count: 1
+            # Define the capabilities of the NVIDIA device
+            capabilities: [gpu]
 
 # Define named volumes
 volumes:
-  # Named volume for persisting PostgreSQL data
+  # Create a named volume for persisting PostgreSQL data
   pgdata:
